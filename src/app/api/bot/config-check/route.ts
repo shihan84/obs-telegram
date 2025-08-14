@@ -14,8 +14,8 @@ export async function GET() {
     }
 
     // Check if bot token is configured
-    const hasToken = !!botConfig.botToken;
-    const tokenPreview = hasToken ? botConfig.botToken.substring(0, 10) + '...' : 'Not set';
+    const hasToken = !!botConfig.bot_token;
+    const tokenPreview = hasToken ? botConfig.bot_token.substring(0, 10) + '...' : 'Not set';
 
     const result = {
       configured: hasToken,
@@ -23,12 +23,12 @@ export async function GET() {
         id: botConfig.id,
         hasToken: hasToken,
         tokenPreview: tokenPreview,
-        username: botConfig.botUsername,
-        webhookEnabled: botConfig.isWebhookEnabled,
-        welcomeMessage: botConfig.welcomeMessage,
-        adminOnlyCommands: botConfig.adminOnlyCommands,
-        createdAt: botConfig.createdAt,
-        updatedAt: botConfig.updatedAt
+        username: botConfig.bot_username,
+        webhookEnabled: botConfig.is_webhook_enabled,
+        welcomeMessage: botConfig.welcome_message,
+        adminOnlyCommands: botConfig.admin_only_commands,
+        createdAt: botConfig.created_at,
+        updatedAt: botConfig.updated_at
       },
       database: {
         connected: true,

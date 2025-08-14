@@ -64,16 +64,16 @@ export async function GET() {
     // Test Bot Configuration
     try {
       const botConfig = await db.botConfiguration.findFirst();
-      if (botConfig && botConfig.botToken) {
+      if (botConfig && botConfig.bot_token) {
         diagnostics.bot.configured = true;
-        diagnostics.bot.tokenPreview = botConfig.botToken.substring(0, 10) + '...';
+        diagnostics.bot.tokenPreview = botConfig.bot_token.substring(0, 10) + '...';
 
         // Test Bot API Connection
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
           
-          const response = await fetch(`https://api.telegram.org/bot${botConfig.botToken}/getMe`, {
+          const response = await fetch(`https://api.telegram.org/bot${botConfig.bot_token}/getMe`, {
             method: 'GET',
             signal: controller.signal
           });
@@ -122,9 +122,9 @@ export async function GET() {
         name: conn.name,
         host: conn.host,
         port: conn.port,
-        isConnected: conn.isConnected,
-        lastConnectedAt: conn.lastConnectedAt,
-        createdAt: conn.createdAt
+        isConnected: conn.is_connected,
+        lastConnectedAt: conn.last_connected_at,
+        createdAt: conn.created_at
       }));
 
     } catch (error) {

@@ -20,13 +20,13 @@ export class BotManager {
       // Get bot configuration from database
       const botConfig = await db.botConfiguration.findFirst();
       
-      if (!botConfig || !botConfig.botToken) {
+      if (!botConfig || !botConfig.bot_token) {
         console.warn('Bot token not configured. Please set up bot configuration in the database.');
         return;
       }
 
       // Create bot service
-      this.botService = new TelegramBotService(botConfig.botToken);
+      this.botService = new TelegramBotService(botConfig.bot_token);
       
       // Start the bot
       await this.botService.start();
@@ -70,11 +70,11 @@ export class BotManager {
       // Update or create bot configuration
       await db.botConfiguration.upsert({
         where: { id: 1 },
-        update: { botToken: token },
+        update: { bot_token: token },
         create: { 
-          botToken: token,
-          botUsername: 'OBSControlBot',
-          welcomeMessage: 'Welcome to OBS Control Bot! 🎥\n\nUse /help to see available commands.'
+          bot_token: token,
+          bot_username: 'OBSControlBot',
+          welcome_message: 'Welcome to OBS Control Bot! 🎥\n\nUse /help to see available commands.'
         }
       });
 

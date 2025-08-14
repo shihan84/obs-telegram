@@ -112,8 +112,8 @@ export class OBSManager {
           host,
           port,
           password: password || null,
-          isConnected: false,
-          lastConnectedAt: null
+          is_connected: false,
+          last_connected_at: null
         }
       });
 
@@ -195,12 +195,12 @@ export class OBSManager {
         this.connections.set(connection.id, obsService);
 
         // Set as default if it's the first connection or if it was previously connected
-        if (this.connections.size === 1 || connection.isConnected) {
+        if (this.connections.size === 1 || connection.is_connected) {
           this.defaultConnectionId = connection.id;
         }
 
         // Auto-connect if it was previously connected
-        if (connection.isConnected) {
+        if (connection.is_connected) {
           try {
             await obsService.connect();
           } catch (error) {

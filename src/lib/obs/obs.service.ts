@@ -150,8 +150,8 @@ export class OBSService {
       await db.oBSConnection.update({
         where: { id: this.connectionId },
         data: {
-          isConnected: connected,
-          lastConnectedAt: connected ? new Date() : null
+          is_connected: connected,
+          last_connected_at: connected ? new Date() : null
         }
       });
     } catch (error) {

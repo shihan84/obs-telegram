@@ -14,11 +14,11 @@ export async function GET() {
       isRunning: botManager.isBotRunning(),
       userCount,
       activeUsers,
-      botConfigured: !!botConfig?.botToken,
+      botConfigured: !!botConfig?.bot_token,
       obsConnections: obsConnections.map(conn => ({
         id: conn.id,
         name: conn.name,
-        connected: conn.isConnected
+        connected: conn.is_connected
       }))
     };
 

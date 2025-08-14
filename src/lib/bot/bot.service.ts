@@ -211,7 +211,7 @@ export class TelegramBotService {
         statusMessage += '- No OBS connections configured';
       } else {
         obsConnections.forEach(conn => {
-          statusMessage += `- ${conn.name}: ${conn.isConnected ? 'Connected' : 'Disconnected'}\n`;
+          statusMessage += `- ${conn.name}: ${conn.is_connected ? 'Connected' : 'Disconnected'}\n`;
         });
       }
 

@@ -12,14 +12,14 @@ export async function POST(request: NextRequest) {
     // Get bot configuration from database
     const botConfig = await db.botConfiguration.findFirst();
     
-    if (!botConfig || !botConfig.botToken) {
+    if (!botConfig || !botConfig.bot_token) {
       return NextResponse.json({ error: 'Bot token not configured' }, { status: 400 });
     }
 
     try {
       // Send test message
       const response = await fetch(
-        `https://api.telegram.org/bot${botConfig.botToken}/sendMessage?chat_id=${encodeURIComponent(chatId)}&text=${encodeURIComponent(message)}`,
+        `https://api.telegram.org/bot${botConfig.bot_token}/sendMessage?chat_id=${encodeURIComponent(chatId)}&text=${encodeURIComponent(message)}`,
         {
           method: 'POST',
           headers: {

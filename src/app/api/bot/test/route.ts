@@ -6,7 +6,7 @@ export async function POST() {
     // Get bot configuration from database
     const botConfig = await db.botConfiguration.findFirst();
     
-    if (!botConfig || !botConfig.botToken) {
+    if (!botConfig || !botConfig.bot_token) {
       return NextResponse.json({ error: 'Bot token not configured' }, { status: 400 });
     }
 
@@ -23,7 +23,7 @@ export async function POST() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      const response = await fetch(`https://api.telegram.org/bot${botConfig.botToken}/getMe`, {
+      const response = await fetch(`https://api.telegram.org/bot${botConfig.bot_token}/getMe`, {
         method: 'GET',
         signal: controller.signal
       });
