@@ -43,10 +43,17 @@ export async function GET() {
       const tables = ['telegram_users', 'bot_configurations', 'obs_connections', 'scenes', 'sources', 'command_histories', 'stream_sessions'];
       for (const table of tables) {
         try {
-          await db.$queryRawUnsafe(`SELECT COUNT(*) FROM ${table}`);
+          // Use a more robust approach to avoid prepared statement conflicts
+          const result = await db.$queryRaw`SELECT COUNT(*)::text as count FROM ${table}`;
           diagnostics.database.tables[table] = 'OK';
         } catch (error) {
-          diagnostics.database.tables[table] = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          // Try alternative approach if the first one fails
+          try {
+            const result = await db.$queryRawUnsafe(`SELECT COUNT(*) as count FROM "${table}"`);
+            diagnostics.database.tables[table] = 'OK';
+          } catch (error2) {
+            diagnostics.database.tables[table] = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          }
         }
       }
     } catch (error) {

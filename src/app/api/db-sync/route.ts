@@ -3,16 +3,74 @@ import { db } from '@/lib/db';
 
 export async function POST() {
   try {
-    console.log('🔄 Starting database schema synchronization...');
+    console.log('🔄 Starting comprehensive database schema synchronization...');
     
     const results = {
       timestamp: new Date().toISOString(),
       tables: {} as Record<string, string>,
+      columns: {} as Record<string, string>,
       errors: [] as string[]
     };
 
-    // Check and create tables if they don't exist
-    const tables = [
+    // First, let's check if the critical columns exist and add them if they don't
+    const criticalColumns = [
+      {
+        table: 'bot_configurations',
+        column: 'bot_token',
+        type: 'VARCHAR(500)',
+        checkQuery: `SELECT column_name FROM information_schema.columns WHERE table_name = 'bot_configurations' AND column_name = 'bot_token';`,
+        addQuery: `ALTER TABLE bot_configurations ADD COLUMN IF NOT EXISTS bot_token VARCHAR(500);`
+      },
+      {
+        table: 'bot_configurations',
+        column: 'bot_username',
+        type: 'VARCHAR(255)',
+        checkQuery: `SELECT column_name FROM information_schema.columns WHERE table_name = 'bot_configurations' AND column_name = 'bot_username';`,
+        addQuery: `ALTER TABLE bot_configurations ADD COLUMN IF NOT EXISTS bot_username VARCHAR(255);`
+      },
+      {
+        table: 'obs_connections',
+        column: 'is_connected',
+        type: 'BOOLEAN',
+        checkQuery: `SELECT column_name FROM information_schema.columns WHERE table_name = 'obs_connections' AND column_name = 'is_connected';`,
+        addQuery: `ALTER TABLE obs_connections ADD COLUMN IF NOT EXISTS is_connected BOOLEAN DEFAULT FALSE;`
+      },
+      {
+        table: 'obs_connections',
+        column: 'last_connected_at',
+        type: 'TIMESTAMP',
+        checkQuery: `SELECT column_name FROM information_schema.columns WHERE table_name = 'obs_connections' AND column_name = 'last_connected_at';`,
+        addQuery: `ALTER TABLE obs_connections ADD COLUMN IF NOT EXISTS last_connected_at TIMESTAMP;`
+      }
+    ];
+
+    // Check and add critical columns first
+    for (const columnInfo of criticalColumns) {
+      try {
+        console.log(`🔍 Checking column ${columnInfo.table}.${columnInfo.column}...`);
+        
+        // Check if column exists
+        const checkResult = await db.$queryRawUnsafe(columnInfo.checkQuery);
+        const columnExists = Array.isArray(checkResult) && checkResult.length > 0;
+        
+        if (!columnExists) {
+          console.log(`➕ Adding column ${columnInfo.table}.${columnInfo.column}...`);
+          await db.$executeRawUnsafe(columnInfo.addQuery);
+          results.columns[`${columnInfo.table}.${columnInfo.column}`] = 'Added';
+          console.log(`✅ Column ${columnInfo.table}.${columnInfo.column} added successfully`);
+        } else {
+          results.columns[`${columnInfo.table}.${columnInfo.column}`] = 'Already exists';
+          console.log(`✅ Column ${columnInfo.table}.${columnInfo.column} already exists`);
+        }
+      } catch (error) {
+        const errorMsg = `Error with column ${columnInfo.table}.${columnInfo.column}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        results.errors.push(errorMsg);
+        console.error(`❌ ${errorMsg}`);
+      }
+    }
+
+    // Now let's ensure all tables exist with proper structure
+    const tableDefinitions = [
       {
         name: 'telegram_users',
         createQuery: `
@@ -35,7 +93,7 @@ export async function POST() {
         createQuery: `
           CREATE TABLE IF NOT EXISTS bot_configurations (
             id SERIAL PRIMARY KEY,
-            bot_token VARCHAR(500) UNIQUE NOT NULL,
+            bot_token VARCHAR(500) UNIQUE,
             bot_username VARCHAR(255),
             webhook_url VARCHAR(500),
             is_webhook_enabled BOOLEAN DEFAULT FALSE,
@@ -138,71 +196,32 @@ export async function POST() {
     ];
 
     // Create tables
-    for (const table of tables) {
+    for (const tableDef of tableDefinitions) {
       try {
-        await db.$executeRawUnsafe(table.createQuery);
-        results.tables[table.name] = 'Created/Verified';
-        console.log(`✅ Table ${table.name} created/verified`);
+        await db.$executeRawUnsafe(tableDef.createQuery);
+        results.tables[tableDef.name] = 'Created/Verified';
+        console.log(`✅ Table ${tableDef.name} created/verified`);
       } catch (error) {
-        const errorMsg = `Error creating table ${table.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        const errorMsg = `Error creating table ${tableDef.name}: ${error instanceof Error ? error.message : 'Unknown error'}`;
         results.errors.push(errorMsg);
         console.error(`❌ ${errorMsg}`);
       }
     }
 
-    // Add missing columns if they don't exist
-    const columnChecks = [
-      {
-        table: 'bot_configurations',
-        column: 'bot_token',
-        type: 'VARCHAR(500)',
-        addQuery: `ALTER TABLE bot_configurations ADD COLUMN IF NOT EXISTS bot_token VARCHAR(500) UNIQUE;`
-      },
-      {
-        table: 'obs_connections',
-        column: 'is_connected',
-        type: 'BOOLEAN',
-        addQuery: `ALTER TABLE obs_connections ADD COLUMN IF NOT EXISTS is_connected BOOLEAN DEFAULT FALSE;`
-      },
-      {
-        table: 'obs_connections',
-        column: 'last_connected_at',
-        type: 'TIMESTAMP',
-        addQuery: `ALTER TABLE obs_connections ADD COLUMN IF NOT EXISTS last_connected_at TIMESTAMP;`
-      }
-    ];
-
-    // Check and add missing columns
-    for (const columnCheck of columnChecks) {
-      try {
-        await db.$executeRawUnsafe(columnCheck.addQuery);
-        console.log(`✅ Column ${columnCheck.table}.${columnCheck.column} added/verified`);
-      } catch (error) {
-        // Column might already exist, which is fine
-        console.log(`ℹ️  Column ${columnCheck.table}.${columnCheck.column} already exists or error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    }
-
-    // Update timestamps for updated_at
-    const triggerFunctions = [
-      `
-      CREATE OR REPLACE FUNCTION update_updated_at_column()
-      RETURNS TRIGGER AS $$
-      BEGIN
-        NEW.updated_at = CURRENT_TIMESTAMP;
-        RETURN NEW;
-      END;
-      $$ language 'plpgsql';
-      `
-    ];
-
-    for (const triggerFunc of triggerFunctions) {
-      try {
-        await db.$executeRawUnsafe(triggerFunc);
-        console.log('✅ Trigger function created/updated');
-      } catch (error) {
-        console.log(`ℹ️  Trigger function already exists or error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
+    // Create or update the trigger function for updated_at
+    try {
+      await db.$executeRawUnsafe(`
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $$
+        BEGIN
+          NEW.updated_at = CURRENT_TIMESTAMP;
+          RETURN NEW;
+        END;
+        $$ language 'plpgsql';
+      `);
+      console.log('✅ Trigger function created/updated');
+    } catch (error) {
+      console.log(`ℹ️  Trigger function already exists or error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
     // Create triggers for tables that have updated_at column
@@ -223,12 +242,17 @@ export async function POST() {
       }
     }
 
-    console.log('🎉 Database schema synchronization completed!');
+    console.log('🎉 Comprehensive database schema synchronization completed!');
 
     return NextResponse.json({
       success: true,
       message: 'Database schema synchronized successfully',
-      results
+      results,
+      nextSteps: {
+        message: 'Now you can configure your bot token and OBS connections',
+        diagnostics: 'Visit /api/diagnostics to verify the fix',
+        botConfig: 'Add your bot token through the application interface'
+      }
     });
 
   } catch (error) {
@@ -244,6 +268,7 @@ export async function POST() {
 export async function GET() {
   return NextResponse.json({
     message: 'Please use POST to synchronize database schema',
-    endpoint: 'POST /api/db-sync'
+    endpoint: 'POST /api/db-sync',
+    instructions: 'Run: curl -X POST https://obs-telegram.vercel.app/api/db-sync'
   });
 }
