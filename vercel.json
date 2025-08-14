@@ -1,0 +1,13 @@
+{
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "installCommand": "npm install && npx prisma generate",
+  "buildCommand": "npm run build",
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  }
+}

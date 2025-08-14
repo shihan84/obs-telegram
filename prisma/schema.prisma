@@ -1,0 +1,137 @@
+// This is your Prisma schema file for OBS Telegram Bot
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model TelegramUser {
+  id           Int      @id @default(autoincrement())
+  telegramId   BigInt   @unique
+  username     String?
+  firstName    String?
+  lastName     String?
+  isBot        Boolean  @default(false)
+  isAdmin      Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  commandHistories CommandHistory[]
+  streamSessions   StreamSession[]
+  
+  @@map("telegram_users")
+}
+
+model BotConfiguration {
+  id                   Int      @id @default(autoincrement())
+  botToken             String   @unique
+  botUsername          String?
+  webhookUrl           String?
+  isWebhookEnabled     Boolean  @default(false)
+  welcomeMessage       String   @default("Welcome to OBS Control Bot! Use /help to see available commands.")
+  adminOnlyCommands    Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  @@map("bot_configurations")
+}
+
+model OBSConnection {
+  id                   Int      @id @default(autoincrement())
+  name                 String
+  host                 String   @default("localhost")
+  port                 Int      @default(4455)
+  password             String?
+  isConnected          Boolean  @default(false)
+  lastConnectedAt      DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  // Relations
+  scenes               Scene[]
+  sources              Source[]
+  streamSessions       StreamSession[]
+  
+  @@map("obs_connections")
+}
+
+model Scene {
+  id                   Int      @id @default(autoincrement())
+  name                 String
+  sceneId              String?
+  obsConnectionId      Int
+  isActive             Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  // Relations
+  obsConnection        OBSConnection @relation(fields: [obsConnectionId], references: [id], onDelete: Cascade)
+  sources              Source[]
+  
+  @@unique([name, obsConnectionId])
+  @@map("scenes")
+}
+
+model Source {
+  id                   Int      @id @default(autoincrement())
+  name                 String
+  sourceId             String?
+  sourceType           String?
+  sceneId              Int?
+  obsConnectionId      Int
+  isVisible            Boolean  @default(true)
+  isEnabled            Boolean  @default(true)
+  muted                Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  // Relations
+  obsConnection        OBSConnection @relation(fields: [obsConnectionId], references: [id], onDelete: Cascade)
+  scene                Scene?        @relation(fields: [sceneId], references: [id], onDelete: SetNull)
+  
+  @@unique([name, obsConnectionId])
+  @@map("sources")
+}
+
+model CommandHistory {
+  id                   Int      @id @default(autoincrement())
+  command              String
+  parameters           String?
+  response             String?
+  status               String   @default("pending") // pending, success, error
+  telegramUserId       Int?
+  executionTime        Int?     // in milliseconds
+  createdAt            DateTime @default(now())
+  
+  // Relations
+  telegramUser         TelegramUser? @relation(fields: [telegramUserId], references: [id], onDelete: SetNull)
+  
+  @@map("command_histories")
+}
+
+model StreamSession {
+  id                   Int      @id @default(autoincrement())
+  streamKey            String?
+  streamUrl            String?
+  isStreaming          Boolean  @default(false)
+  startedAt            DateTime?
+  endedAt              DateTime?
+  duration             Int?     // in seconds
+  telegramUserId       Int?
+  obsConnectionId      Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  // Relations
+  telegramUser         TelegramUser? @relation(fields: [telegramUserId], references: [id], onDelete: SetNull)
+  obsConnection        OBSConnection @relation(fields: [obsConnectionId], references: [id], onDelete: Cascade)
+  
+  @@map("stream_sessions")
+}
