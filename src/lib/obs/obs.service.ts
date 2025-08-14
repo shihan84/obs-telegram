@@ -228,6 +228,63 @@ export class OBSService {
     }
   }
 
+  public async connectDirect(host: string, port: number, password?: string): Promise<void> {
+    try {
+      console.log(`Connecting directly to OBS at ${host}:${port}`);
+      
+      // Test port accessibility first
+      const isPortOpen = await this.testPortQuick(host, port);
+      
+      if (!isPortOpen) {
+        throw new Error(`Cannot connect to OBS: Port ${port} is not accessible. Please ensure OBS Studio is running and WebSocket server is enabled.`);
+      }
+
+      console.log(`Port test passed, connecting to OBS at ${host}:${port}`);
+
+      const address = `ws://${host}:${port}`;
+      const connectOptions: any = {
+        secure: false
+      };
+
+      if (password) {
+        connectOptions.password = password;
+      }
+
+      await this.obs.connect(address, connectOptions);
+      console.log(`Successfully connected to OBS at ${host}:${port}`);
+    } catch (error) {
+      console.error('Failed to connect to OBS:', error);
+      
+      // Provide more helpful error messages
+      if (error instanceof Error) {
+        if (error.message.includes('ECONNREFUSED')) {
+          throw new Error('OBS connection refused. Please ensure OBS Studio is running and WebSocket server is enabled.');
+        } else if (error.message.includes('ETIMEDOUT')) {
+          throw new Error('OBS connection timeout. Check network connectivity and firewall settings.');
+        } else if (error.message.includes('Authentication')) {
+          throw new Error('OBS authentication failed. Please check the WebSocket password.');
+        } else {
+          throw new Error(`OBS connection failed: ${error.message}`);
+        }
+      }
+      throw error;
+    }
+  }
+
+  public async getVersion(): Promise<any> {
+    if (!this.isConnected) {
+      throw new Error('OBS not connected');
+    }
+
+    try {
+      const response = await this.obs.call('GetVersion');
+      return response;
+    } catch (error) {
+      console.error('Failed to get OBS version:', error);
+      throw error;
+    }
+  }
+
   public async disconnect(): Promise<void> {
     try {
       if (this.isConnected) {
