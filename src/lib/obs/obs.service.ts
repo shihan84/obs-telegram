@@ -1,6 +1,7 @@
 import OBSWebSocket from 'obs-websocket-js';
 import { db } from '@/lib/db';
 import { OBSDiagnosticsService } from './obs.diagnostics';
+import { createConnection } from 'net';
 
 export interface OBSScene {
   sceneIndex: number;
@@ -112,6 +113,38 @@ export class OBSService {
     });
   }
 
+  private async testPortQuick(host: string, port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      const socket = createConnection(port, host);
+      let resolved = false;
+      
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          socket.destroy();
+          resolve(false);
+        }
+      }, 5000);
+
+      socket.on('connect', () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          socket.destroy();
+          resolve(true);
+        }
+      });
+
+      socket.on('error', () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          resolve(false);
+        }
+      });
+    });
+  }
+
   private async updateConnectionStatus(connected: boolean) {
     try {
       await db.oBSConnection.update({
@@ -153,19 +186,20 @@ export class OBSService {
         throw new Error('OBS connection not found');
       }
 
-      // Run diagnostics before attempting connection
-      console.log(`Running diagnostics for ${connection.host}:${connection.port}`);
-      const diagnostics = await OBSDiagnosticsService.testConnection(connection.host, connection.port);
+        // Run quick diagnostics before attempting connection
+      console.log(`Running quick diagnostics for ${connection.host}:${connection.port}`);
       
-      if (!diagnostics.isReachable || !diagnostics.isPortOpen) {
-        console.warn('Connection diagnostics failed:', diagnostics);
-        throw new Error(`Cannot connect to OBS: ${diagnostics.error || 'Connection failed'}. Recommendations: ${diagnostics.recommendations.join(', ')}`);
+      // Simple TCP connection test
+      const isPortOpen = await this.testPortQuick(connection.host, connection.port);
+      
+      if (!isPortOpen) {
+        throw new Error(`Cannot connect to OBS: Port ${connection.port} is not accessible. Please ensure OBS Studio is running and WebSocket server is enabled.`);
       }
 
       console.log(`Diagnostics passed, connecting to OBS at ${connection.host}:${connection.port}`);
 
+      const address = `ws://${connection.host}:${connection.port}`;
       const connectOptions: any = {
-        address: `${connection.host}:${connection.port}`,
         secure: false
       };
 
@@ -173,7 +207,7 @@ export class OBSService {
         connectOptions.password = connection.password;
       }
 
-      await this.obs.connect(connectOptions);
+      await this.obs.connect(address, connectOptions);
       console.log(`Successfully connected to OBS at ${connection.host}:${connection.port}`);
     } catch (error) {
       console.error('Failed to connect to OBS:', error);
@@ -425,7 +459,15 @@ export class OBSService {
     }
 
     try {
+      // Check if stream is already active
+      const status = await this.getStreamStatus();
+      if (status.outputActive) {
+        console.log('Stream is already active');
+        return;
+      }
+
       await this.obs.call('StartStream');
+      console.log('Stream started successfully');
     } catch (error) {
       console.error('Failed to start stream:', error);
       throw error;
@@ -438,7 +480,15 @@ export class OBSService {
     }
 
     try {
+      // Check if stream is active
+      const status = await this.getStreamStatus();
+      if (!status.outputActive) {
+        console.log('Stream is not active');
+        return;
+      }
+
       await this.obs.call('StopStream');
+      console.log('Stream stopped successfully');
     } catch (error) {
       console.error('Failed to stop stream:', error);
       throw error;
@@ -487,6 +537,121 @@ export class OBSService {
       await this.obs.call('StopRecord');
     } catch (error) {
       console.error('Failed to stop recording:', error);
+      throw error;
+    }
+  }
+
+  // Media Source Control Methods
+  public async playMedia(sourceName: string): Promise<void> {
+    if (!this.isConnected) {
+      throw new Error('OBS not connected');
+    }
+
+    try {
+      await this.obs.call('PlayPauseMedia', {
+        sourceName,
+        playPause: true
+      });
+      console.log(`Media ${sourceName} started successfully`);
+    } catch (error) {
+      console.error('Failed to play media:', error);
+      throw error;
+    }
+  }
+
+  public async pauseMedia(sourceName: string): Promise<void> {
+    if (!this.isConnected) {
+      throw new Error('OBS not connected');
+    }
+
+    try {
+      await this.obs.call('PlayPauseMedia', {
+        sourceName,
+        playPause: false
+      });
+      console.log(`Media ${sourceName} paused successfully`);
+    } catch (error) {
+      console.error('Failed to pause media:', error);
+      throw error;
+    }
+  }
+
+  public async restartMedia(sourceName: string): Promise<void> {
+    if (!this.isConnected) {
+      throw new Error('OBS not connected');
+    }
+
+    try {
+      await this.obs.call('RestartMedia', {
+        sourceName
+      });
+      console.log(`Media ${sourceName} restarted successfully`);
+    } catch (error) {
+      console.error('Failed to restart media:', error);
+      throw error;
+    }
+  }
+
+  public async stopMedia(sourceName: string): Promise<void> {
+    if (!this.isConnected) {
+      throw new Error('OBS not connected');
+    }
+
+    try {
+      await this.obs.call('StopMedia', {
+        sourceName
+      });
+      console.log(`Media ${sourceName} stopped successfully`);
+    } catch (error) {
+      console.error('Failed to stop media:', error);
+      throw error;
+    }
+  }
+
+  public async nextMedia(sourceName: string): Promise<void> {
+    if (!this.isConnected) {
+      throw new Error('OBS not connected');
+    }
+
+    try {
+      await this.obs.call('NextMedia', {
+        sourceName
+      });
+      console.log(`Next media in ${sourceName} played successfully`);
+    } catch (error) {
+      console.error('Failed to play next media:', error);
+      throw error;
+    }
+  }
+
+  public async previousMedia(sourceName: string): Promise<void> {
+    if (!this.isConnected) {
+      throw new Error('OBS not connected');
+    }
+
+    try {
+      await this.obs.call('PreviousMedia', {
+        sourceName
+      });
+      console.log(`Previous media in ${sourceName} played successfully`);
+    } catch (error) {
+      console.error('Failed to play previous media:', error);
+      throw error;
+    }
+  }
+
+  public async getMediaStatus(sourceName: string): Promise<any> {
+    if (!this.isConnected) {
+      throw new Error('OBS not connected');
+    }
+
+    try {
+      const response = await this.obs.call('GetMediaInputStatus', {
+        inputName: sourceName
+      });
+      return response;
+    } catch (error) {
+      console.error('Failed to get media status:', error);
       throw error;
     }
   }

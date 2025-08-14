@@ -3,10 +3,11 @@ import { OBSManager } from '@/lib/obs/obs.manager';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const connectionId = parseInt(params.id);
+    const { id } = await params;
+    const connectionId = parseInt(id);
     
     if (isNaN(connectionId)) {
       return NextResponse.json({ error: 'Invalid connection ID' }, { status: 400 });

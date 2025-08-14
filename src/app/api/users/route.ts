@@ -7,7 +7,13 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     });
 
-    return NextResponse.json(users);
+    // Convert BigInt to string for JSON serialization
+    const serializedUsers = users.map(user => ({
+      ...user,
+      telegramId: user.telegramId.toString()
+    }));
+
+    return NextResponse.json(serializedUsers);
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });

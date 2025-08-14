@@ -5,7 +5,7 @@ import { OBSManager } from '@/lib/obs/obs.manager';
 import { CommandHistory } from '@prisma/client';
 
 export interface BotContext extends Context {
-  session?: {
+  state?: {
     userId?: number;
     isAdmin?: boolean;
   };
@@ -26,10 +26,10 @@ export class TelegramBotService {
   }
 
   private setupMiddleware() {
-    // Session middleware
+    // State middleware
     this.bot.use(async (ctx, next) => {
-      if (!ctx.session) {
-        ctx.session = {};
+      if (!ctx.state) {
+        ctx.state = {};
       }
       
       if (ctx.from) {
@@ -38,8 +38,8 @@ export class TelegramBotService {
         });
         
         if (user) {
-          ctx.session.userId = user.id;
-          ctx.session.isAdmin = user.isAdmin;
+          ctx.state.userId = user.id;
+          ctx.state.isAdmin = user.isAdmin;
         } else {
           // Create new user
           const newUser = await db.telegramUser.create({
@@ -51,8 +51,8 @@ export class TelegramBotService {
               isBot: ctx.from.is_bot
             }
           });
-          ctx.session.userId = newUser.id;
-          ctx.session.isAdmin = newUser.isAdmin;
+          ctx.state.userId = newUser.id;
+          ctx.state.isAdmin = newUser.isAdmin;
         }
       }
       
@@ -81,6 +81,15 @@ export class TelegramBotService {
     this.bot.command('mute', this.handleMute.bind(this));
     this.bot.command('unmute', this.handleUnmute.bind(this));
     this.bot.command('toggle', this.handleToggle.bind(this));
+    
+    // Media Source Control commands
+    this.bot.command('play', this.handlePlayMedia.bind(this));
+    this.bot.command('pause', this.handlePauseMedia.bind(this));
+    this.bot.command('restart', this.handleRestartMedia.bind(this));
+    this.bot.command('stopmedia', this.handleStopMedia.bind(this));
+    this.bot.command('next', this.handleNextMedia.bind(this));
+    this.bot.command('previous', this.handlePreviousMedia.bind(this));
+    this.bot.command('mediastatus', this.handleMediaStatus.bind(this));
   }
 
   private setupHandlers() {
@@ -103,7 +112,7 @@ export class TelegramBotService {
           response,
           status,
           executionTime,
-          telegramUserId: ctx.session?.userId
+          telegramUserId: ctx.state?.userId
         }
       });
     } catch (error) {
@@ -145,6 +154,15 @@ export class TelegramBotService {
 /unmute <source> - Unmute audio source
 /toggle <source> - Toggle source visibility
 
+*Media Source Control Commands:*
+/play <source> - Play media source
+/pause <source> - Pause media source
+/restart <source> - Restart media source
+/stopmedia <source> - Stop media source
+/next <source> - Play next media in source
+/previous <source> - Play previous media in source
+/mediastatus <source> - Get media source status
+
 *Admin Commands:*
 /admin <user_id> - Make user admin
 /users - List all users
@@ -152,7 +170,17 @@ export class TelegramBotService {
 *Examples:*
 /scene Camera
 /stream start
-/mute Microphone`;
+/mute Microphone
+/play "Intro Video"
+/pause "Background Music"
+/restart "Commercial"
+/next "Playlist"
+/mediastatus "Video Player"
+
+*Legend:*
+👁️ = Visible source  🚫 = Hidden source
+🔊 = Unmuted audio  🔇 = Muted audio
+🎵 = Media source   📺 = Regular source`;
 
     await ctx.reply(helpMessage, { parse_mode: 'Markdown' });
     
@@ -176,7 +204,8 @@ export class TelegramBotService {
 - Users: ${userCount} total, ${activeUsers} active
 - Bot Token: ${botConfig ? 'Configured' : 'Not configured'}
 
-📺 *OBS Connections:*\n`;
+📺 *OBS Connections:*
+`;
       
       if (obsConnections.length === 0) {
         statusMessage += '- No OBS connections configured';
@@ -200,7 +229,7 @@ export class TelegramBotService {
   private async handleAdmin(ctx: BotContext) {
     const startTime = Date.now();
     
-    if (!ctx.session?.isAdmin) {
+    if (!ctx.state?.isAdmin) {
       await ctx.reply('⚠️ Admin access required.');
       return;
     }
@@ -246,7 +275,7 @@ export class TelegramBotService {
   private async handleUsers(ctx: BotContext) {
     const startTime = Date.now();
     
-    if (!ctx.session?.isAdmin) {
+    if (!ctx.state?.isAdmin) {
       await ctx.reply('⚠️ Admin access required.');
       return;
     }
@@ -363,7 +392,8 @@ export class TelegramBotService {
       sources.forEach((source, index) => {
         const visibility = source.visible ? '👁️' : '🚫';
         const muteStatus = source.muted ? '🔇' : '🔊';
-        sourceList += `${index + 1}. ${visibility} ${muteStatus} ${source.name} (${source.type})\n`;
+        const mediaIndicator = this.isMediaSource(source.type) ? '🎵' : '📺';
+        sourceList += `${index + 1}. ${visibility} ${muteStatus} ${mediaIndicator} ${source.name} (${source.type})\n`;
       });
 
       await ctx.reply(sourceList, { parse_mode: 'Markdown' });
@@ -526,11 +556,203 @@ export class TelegramBotService {
     }
   }
 
+  private async handlePlayMedia(ctx: BotContext) {
+    const startTime = Date.now();
+    const args = ctx.message?.text?.split(' ');
+    const sourceName = args?.slice(1).join(' ');
+    
+    if (!sourceName) {
+      await ctx.reply('❌ Please specify a media source name. Usage: /play <source_name>');
+      return;
+    }
+
+    try {
+      await this.obsManager.playMedia(sourceName);
+      await ctx.reply(`▶️ ${sourceName} started playing!`);
+      
+      const executionTime = Date.now() - startTime;
+      await this.logCommand(ctx, 'play', sourceName, `${sourceName} started playing`, 'success', executionTime);
+    } catch (error) {
+      const errorMessage = `❌ Failed to play ${sourceName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      await ctx.reply(errorMessage);
+      await this.logCommand(ctx, 'play', sourceName, errorMessage, 'error', Date.now() - startTime);
+    }
+  }
+
+  private async handlePauseMedia(ctx: BotContext) {
+    const startTime = Date.now();
+    const args = ctx.message?.text?.split(' ');
+    const sourceName = args?.slice(1).join(' ');
+    
+    if (!sourceName) {
+      await ctx.reply('❌ Please specify a media source name. Usage: /pause <source_name>');
+      return;
+    }
+
+    try {
+      await this.obsManager.pauseMedia(sourceName);
+      await ctx.reply(`⏸️ ${sourceName} paused!`);
+      
+      const executionTime = Date.now() - startTime;
+      await this.logCommand(ctx, 'pause', sourceName, `${sourceName} paused`, 'success', executionTime);
+    } catch (error) {
+      const errorMessage = `❌ Failed to pause ${sourceName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      await ctx.reply(errorMessage);
+      await this.logCommand(ctx, 'pause', sourceName, errorMessage, 'error', Date.now() - startTime);
+    }
+  }
+
+  private async handleRestartMedia(ctx: BotContext) {
+    const startTime = Date.now();
+    const args = ctx.message?.text?.split(' ');
+    const sourceName = args?.slice(1).join(' ');
+    
+    if (!sourceName) {
+      await ctx.reply('❌ Please specify a media source name. Usage: /restart <source_name>');
+      return;
+    }
+
+    try {
+      await this.obsManager.restartMedia(sourceName);
+      await ctx.reply(`🔄 ${sourceName} restarted!`);
+      
+      const executionTime = Date.now() - startTime;
+      await this.logCommand(ctx, 'restart', sourceName, `${sourceName} restarted`, 'success', executionTime);
+    } catch (error) {
+      const errorMessage = `❌ Failed to restart ${sourceName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      await ctx.reply(errorMessage);
+      await this.logCommand(ctx, 'restart', sourceName, errorMessage, 'error', Date.now() - startTime);
+    }
+  }
+
+  private async handleStopMedia(ctx: BotContext) {
+    const startTime = Date.now();
+    const args = ctx.message?.text?.split(' ');
+    const sourceName = args?.slice(1).join(' ');
+    
+    if (!sourceName) {
+      await ctx.reply('❌ Please specify a media source name. Usage: /stopmedia <source_name>');
+      return;
+    }
+
+    try {
+      await this.obsManager.stopMedia(sourceName);
+      await ctx.reply(`⏹️ ${sourceName} stopped!`);
+      
+      const executionTime = Date.now() - startTime;
+      await this.logCommand(ctx, 'stopmedia', sourceName, `${sourceName} stopped`, 'success', executionTime);
+    } catch (error) {
+      const errorMessage = `❌ Failed to stop ${sourceName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      await ctx.reply(errorMessage);
+      await this.logCommand(ctx, 'stopmedia', sourceName, errorMessage, 'error', Date.now() - startTime);
+    }
+  }
+
+  private async handleNextMedia(ctx: BotContext) {
+    const startTime = Date.now();
+    const args = ctx.message?.text?.split(' ');
+    const sourceName = args?.slice(1).join(' ');
+    
+    if (!sourceName) {
+      await ctx.reply('❌ Please specify a media source name. Usage: /next <source_name>');
+      return;
+    }
+
+    try {
+      await this.obsManager.nextMedia(sourceName);
+      await ctx.reply(`⏭️ Next media in ${sourceName} started!`);
+      
+      const executionTime = Date.now() - startTime;
+      await this.logCommand(ctx, 'next', sourceName, `Next media in ${sourceName} started`, 'success', executionTime);
+    } catch (error) {
+      const errorMessage = `❌ Failed to play next media in ${sourceName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      await ctx.reply(errorMessage);
+      await this.logCommand(ctx, 'next', sourceName, errorMessage, 'error', Date.now() - startTime);
+    }
+  }
+
+  private async handlePreviousMedia(ctx: BotContext) {
+    const startTime = Date.now();
+    const args = ctx.message?.text?.split(' ');
+    const sourceName = args?.slice(1).join(' ');
+    
+    if (!sourceName) {
+      await ctx.reply('❌ Please specify a media source name. Usage: /previous <source_name>');
+      return;
+    }
+
+    try {
+      await this.obsManager.previousMedia(sourceName);
+      await ctx.reply(`⏮️ Previous media in ${sourceName} started!`);
+      
+      const executionTime = Date.now() - startTime;
+      await this.logCommand(ctx, 'previous', sourceName, `Previous media in ${sourceName} started`, 'success', executionTime);
+    } catch (error) {
+      const errorMessage = `❌ Failed to play previous media in ${sourceName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      await ctx.reply(errorMessage);
+      await this.logCommand(ctx, 'previous', sourceName, errorMessage, 'error', Date.now() - startTime);
+    }
+  }
+
+  private async handleMediaStatus(ctx: BotContext) {
+    const startTime = Date.now();
+    const args = ctx.message?.text?.split(' ');
+    const sourceName = args?.slice(1).join(' ');
+    
+    if (!sourceName) {
+      await ctx.reply('❌ Please specify a media source name. Usage: /mediastatus <source_name>');
+      return;
+    }
+
+    try {
+      const status = await this.obsManager.getMediaStatus(sourceName);
+      
+      let statusMessage = `📊 *Media Status for ${sourceName}:*\n\n`;
+      statusMessage += `🎵 Playing: ${status.mediaState === 'playing' ? '✅ Yes' : '❌ No'}\n`;
+      statusMessage += `⏸️ Paused: ${status.mediaState === 'paused' ? '✅ Yes' : '❌ No'}\n`;
+      statusMessage += `⏹️ Stopped: ${status.mediaState === 'stopped' ? '✅ Yes' : '❌ No'}\n`;
+      statusMessage += `⏱️ Duration: ${status.duration || 'Unknown'}\n`;
+      statusMessage += `📍 Position: ${status.position || 'Unknown'}\n`;
+      
+      if (status.looping !== undefined) {
+        statusMessage += `🔄 Looping: ${status.looping ? '✅ Yes' : '❌ No'}\n`;
+      }
+      
+      await ctx.reply(statusMessage, { parse_mode: 'Markdown' });
+      
+      const executionTime = Date.now() - startTime;
+      await this.logCommand(ctx, 'mediastatus', sourceName, `Media status for ${sourceName} retrieved`, 'success', executionTime);
+    } catch (error) {
+      const errorMessage = `❌ Failed to get media status for ${sourceName}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      await ctx.reply(errorMessage);
+      await this.logCommand(ctx, 'mediastatus', sourceName, errorMessage, 'error', Date.now() - startTime);
+    }
+  }
+
   private async handleText(ctx: BotContext) {
     // Handle text messages that are not commands
     if (ctx.message?.text && !ctx.message.text.startsWith('/')) {
       await ctx.reply('I understand commands. Use /help to see available commands.');
     }
+  }
+
+  private isMediaSource(sourceType: string): boolean {
+    const mediaSourceTypes = [
+      'ffmpeg_source',
+      'vlc_source',
+      'image_source',
+      'browser_source',
+      'text_gdiplus',
+      'text_ft2_source',
+      'monitor_capture',
+      'window_capture',
+      'game_capture',
+      'dshow_input',
+      'wasapi_input_capture',
+      'wasapi_output_capture'
+    ];
+    
+    return mediaSourceTypes.includes(sourceType.toLowerCase());
   }
 
   public async start() {

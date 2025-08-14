@@ -3,13 +3,14 @@ import { db } from '@/lib/db';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const userId = parseInt(params.userId);
+    const { userId } = await params;
+    const userIdNum = parseInt(userId);
     const { isAdmin } = await request.json();
     
-    if (isNaN(userId)) {
+    if (isNaN(userIdNum)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
     }
 
@@ -18,7 +19,7 @@ export async function POST(
     }
 
     await db.telegramUser.update({
-      where: { id: userId },
+      where: { id: userIdNum },
       data: { isAdmin }
     });
 

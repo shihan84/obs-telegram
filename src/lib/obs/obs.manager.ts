@@ -1,6 +1,11 @@
 import { OBSService } from './obs.service';
 import { db } from '@/lib/db';
 
+// Global instance to persist across Next.js API routes
+declare global {
+  var globalOBSManager: OBSManager | undefined;
+}
+
 export class OBSManager {
   private static instance: OBSManager;
   private connections: Map<number, OBSService> = new Map();
@@ -9,9 +14,27 @@ export class OBSManager {
   private constructor() {}
 
   public static getInstance(): OBSManager {
+    // Use global instance for Next.js API routes
+    if (typeof global !== 'undefined' && global.globalOBSManager) {
+      return global.globalOBSManager;
+    }
+    
     if (!OBSManager.instance) {
       OBSManager.instance = new OBSManager();
+      
+      // Store in global for Next.js API routes
+      if (typeof global !== 'undefined') {
+        global.globalOBSManager = OBSManager.instance;
+      }
     }
+    
+    // Auto-initialize connections if they haven't been initialized yet
+    if (OBSManager.instance.connections.size === 0) {
+      OBSManager.instance.initializeConnections().catch(error => {
+        console.error('Failed to auto-initialize OBS connections:', error);
+      });
+    }
+    
     return OBSManager.instance;
   }
 
@@ -63,15 +86,58 @@ export class OBSManager {
     }
   }
 
+  public async updateConnection(connectionId: number, name: string, host: string, port: number, password?: string): Promise<void> {
+    try {
+      // Check if connection exists
+      const existingConnection = await db.oBSConnection.findUnique({
+        where: { id: connectionId }
+      });
+
+      if (!existingConnection) {
+        throw new Error('OBS connection not found');
+      }
+
+      // Disconnect if currently connected
+      const obsService = this.connections.get(connectionId);
+      if (obsService) {
+        await obsService.disconnect();
+        this.connections.delete(connectionId);
+      }
+
+      // Update the connection in database
+      await db.oBSConnection.update({
+        where: { id: connectionId },
+        data: {
+          name,
+          host,
+          port,
+          password: password || null,
+          isConnected: false,
+          lastConnectedAt: null
+        }
+      });
+
+      // Create new OBS service with updated connection
+      const newObsService = new OBSService(connectionId);
+      this.connections.set(connectionId, newObsService);
+
+      console.log(`OBS connection ${connectionId} updated successfully`);
+    } catch (error) {
+      console.error('Failed to update OBS connection:', error);
+      throw error;
+    }
+  }
+
   public async connect(connectionId?: number): Promise<void> {
     const targetConnectionId = connectionId || this.defaultConnectionId;
+    
     if (!targetConnectionId) {
       throw new Error('No OBS connection available');
     }
 
     const obsService = this.connections.get(targetConnectionId);
     if (!obsService) {
-      throw new Error('OBS connection not found');
+      throw new Error(`OBS connection not found (ID: ${targetConnectionId})`);
     }
 
     await obsService.connect();
@@ -283,5 +349,62 @@ export class OBSManager {
       throw new Error('No OBS connection available');
     }
     return obsService.getVersion();
+  }
+
+  // Media Source Control Methods
+  public async playMedia(sourceName: string, connectionId?: number) {
+    const obsService = this.getConnection(connectionId);
+    if (!obsService) {
+      throw new Error('No OBS connection available');
+    }
+    return obsService.playMedia(sourceName);
+  }
+
+  public async pauseMedia(sourceName: string, connectionId?: number) {
+    const obsService = this.getConnection(connectionId);
+    if (!obsService) {
+      throw new Error('No OBS connection available');
+    }
+    return obsService.pauseMedia(sourceName);
+  }
+
+  public async restartMedia(sourceName: string, connectionId?: number) {
+    const obsService = this.getConnection(connectionId);
+    if (!obsService) {
+      throw new Error('No OBS connection available');
+    }
+    return obsService.restartMedia(sourceName);
+  }
+
+  public async stopMedia(sourceName: string, connectionId?: number) {
+    const obsService = this.getConnection(connectionId);
+    if (!obsService) {
+      throw new Error('No OBS connection available');
+    }
+    return obsService.stopMedia(sourceName);
+  }
+
+  public async nextMedia(sourceName: string, connectionId?: number) {
+    const obsService = this.getConnection(connectionId);
+    if (!obsService) {
+      throw new Error('No OBS connection available');
+    }
+    return obsService.nextMedia(sourceName);
+  }
+
+  public async previousMedia(sourceName: string, connectionId?: number) {
+    const obsService = this.getConnection(connectionId);
+    if (!obsService) {
+      throw new Error('No OBS connection available');
+    }
+    return obsService.previousMedia(sourceName);
+  }
+
+  public async getMediaStatus(sourceName: string, connectionId?: number) {
+    const obsService = this.getConnection(connectionId);
+    if (!obsService) {
+      throw new Error('No OBS connection available');
+    }
+    return obsService.getMediaStatus(sourceName);
   }
 }
