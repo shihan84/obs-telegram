@@ -7,7 +7,13 @@ const globalForPrisma = globalThis as unknown as {
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: ['query'],
+    log: ['error', 'warn'],
+    // Configure for Vercel serverless environment
+    datasources: {
+      db: {
+        url: process.env.POSTGRES_URL!
+      }
+    }
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
