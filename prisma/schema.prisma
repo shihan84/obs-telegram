@@ -135,3 +135,22 @@ model StreamSession {
   
   @@map("stream_sessions")
 }
+
+model ApplicationLog {
+  id                   Int      @id @default(autoincrement())
+  level                String   @default("INFO") // DEBUG, INFO, WARN, ERROR
+  component            String   // BOT, OBS, DATABASE, API, SYSTEM
+  message              String
+  details              String?  // JSON string for additional details
+  userId               Int?     // Optional user association
+  sessionId            String?  // Optional session tracking
+  createdAt            DateTime @default(now())
+  
+  // Indexes for better performance
+  @@index([level])
+  @@index([component])
+  @@index([createdAt])
+  @@index([userId])
+  
+  @@map("application_logs")
+}

@@ -18,7 +18,8 @@ import {
   AlertTriangle, CheckCircle, XCircle, Clock, Zap, Shield, Database, Monitor, 
   Network, Terminal, Sparkles, TrendingUp, Globe, Server, Cpu, HardDrive,
   Video, Radio, Cast, Signal, Stream, Tv, Camera, Volume2, Headphones, Edit, Trash2,
-  Send, MessageSquare, Broadcast, RadioIcon, CirclePlay, CircleStop
+  Send, MessageSquare, Broadcast, RadioIcon, CirclePlay, CircleStop, FileText, Filter,
+  RefreshCw, Trash2 as TrashIcon, Download, Search
 } from 'lucide-react';
 
 interface BotStatus {
@@ -75,6 +76,24 @@ interface BroadcastStats {
   bitrate: number;
   fps: number;
   resolution: string;
+}
+
+interface LogEntry {
+  id: number;
+  level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+  component: 'BOT' | 'OBS' | 'DATABASE' | 'API' | 'SYSTEM' | 'WEBSOCKET';
+  message: string;
+  details?: any;
+  userId?: number;
+  sessionId?: string;
+  createdAt: string;
+}
+
+interface LogStats {
+  totalLogs: number;
+  logsByLevel: Record<string, number>;
+  logsByComponent: Record<string, number>;
+  recentErrors: LogEntry[];
 }
 
 export default function Home() {
@@ -139,13 +158,27 @@ export default function Home() {
   });
   const [showEditDialog, setShowEditDialog] = useState(false);
 
+  // Logs state
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logStats, setLogStats] = useState<LogStats | null>(null);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logFilters, setLogFilters] = useState({
+    level: '',
+    component: '',
+    limit: 100,
+    offset: 0
+  });
+  const [autoRefresh, setAutoRefresh] = useState(false);
+
   useEffect(() => {
     fetchBotStatus();
     fetchObsConnections();
     fetchUsers();
+    fetchLogs();
+    fetchLogStats();
   }, []);
 
-useEffect(() => {
+  useEffect(() => {
     // Fetch stream status for all connected OBS connections
     obsConnections.forEach(connection => {
       if (connection.isConnected) {
@@ -153,6 +186,17 @@ useEffect(() => {
       }
     });
   }, [obsConnections]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (autoRefresh) {
+      interval = setInterval(() => {
+        fetchLogs();
+        fetchLogStats();
+      }, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
 
   const fetchBotStatus = async () => {
     try {
@@ -190,6 +234,73 @@ useEffect(() => {
     }
   };
 
+  const fetchLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (logFilters.level) params.append('level', logFilters.level);
+      if (logFilters.component) params.append('component', logFilters.component);
+      params.append('limit', logFilters.limit.toString());
+      params.append('offset', logFilters.offset.toString());
+
+      const response = await fetch(`/api/logs?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setLogs(data.logs);
+      }
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const fetchLogStats = async () => {
+    try {
+      const response = await fetch('/api/logs/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setLogStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Failed to fetch log stats:', error);
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (!confirm('Are you sure you want to clear old logs (older than 30 days)?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/logs/stats?olderThanDays=30', {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessage({ type: 'success', text: data.message });
+        fetchLogs();
+        fetchLogStats();
+      } else {
+        setMessage({ type: 'error', text: 'Failed to clear logs' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to clear logs' });
+    }
+  };
+
+  const handleExportLogs = () => {
+    const dataStr = JSON.stringify(logs, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `obs-logs-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleSaveBotToken = async () => {
     if (!botToken.trim()) {
       setMessage({ type: 'error', text: 'Bot token is required' });
@@ -206,12 +317,45 @@ useEffect(() => {
 
       if (response.ok) {
         setMessage({ type: 'success', text: 'Bot token saved successfully' });
+        // Log the successful bot configuration
+        await fetch('/api/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            level: 'INFO',
+            component: 'BOT',
+            message: 'Bot token configured successfully',
+            details: { tokenLength: botToken.length }
+          })
+        });
         fetchBotStatus();
       } else {
         setMessage({ type: 'error', text: 'Failed to save bot token' });
+        // Log the failure
+        await fetch('/api/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            level: 'ERROR',
+            component: 'BOT',
+            message: 'Failed to save bot token',
+            details: { responseStatus: response.status }
+          })
+        });
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to save bot token' });
+      // Log the error
+      await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          level: 'ERROR',
+          component: 'BOT',
+          message: 'Bot token save error',
+          details: { error: error instanceof Error ? error.message : 'Unknown error' }
+        })
+      });
     } finally {
       setLoading(false);
     }
@@ -267,14 +411,59 @@ useEffect(() => {
 
       if (response.ok) {
         setMessage({ type: 'success', text: 'OBS connection added successfully' });
+        // Log the successful OBS connection addition
+        await fetch('/api/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            level: 'INFO',
+            component: 'OBS',
+            message: 'OBS connection added successfully',
+            details: { 
+              name: newObsConnection.name,
+              host: newObsConnection.host,
+              port: newObsConnection.port
+            }
+          })
+        });
         setNewObsConnection({ name: '', host: 'localhost', port: 4455, password: '' });
         fetchObsConnections();
         fetchBotStatus();
       } else {
         setMessage({ type: 'error', text: 'Failed to add OBS connection' });
+        // Log the failure
+        await fetch('/api/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            level: 'ERROR',
+            component: 'OBS',
+            message: 'Failed to add OBS connection',
+            details: { 
+              name: newObsConnection.name,
+              host: newObsConnection.host,
+              port: newObsConnection.port,
+              responseStatus: response.status
+            }
+          })
+        });
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to add OBS connection' });
+      // Log the error
+      await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          level: 'ERROR',
+          component: 'OBS',
+          message: 'OBS connection add error',
+          details: { 
+            name: newObsConnection.name,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
+        })
+      });
     } finally {
       setLoading(false);
     }
@@ -596,7 +785,7 @@ useEffect(() => {
 
         {/* Enhanced Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 h-12 p-1 bg-black/40 backdrop-blur-md rounded-xl border border-red-500/20 shadow-2xl">
+          <TabsList className="grid w-full grid-cols-6 h-12 p-1 bg-black/40 backdrop-blur-md rounded-xl border border-red-500/20 shadow-2xl">
             <TabsTrigger value="dashboard" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg text-gray-300 hover:text-white transition-all">
               <Monitor className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
@@ -616,6 +805,10 @@ useEffect(() => {
             <TabsTrigger value="users" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg text-gray-300 hover:text-white transition-all">
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Users</span>
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg rounded-lg text-gray-300 hover:text-white transition-all">
+              <FileText className="h-4 w-4" />
+              <span className="hidden sm:inline">Logs</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1559,58 +1752,28 @@ useEffect(() => {
                     <div className="p-4 bg-gray-800 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                       <Users className="h-8 w-8 text-gray-400" />
                     </div>
-                    <div className="text-lg font-medium text-gray-400">
-                      No viewers registered yet
-                    </div>
-                    <div className="text-sm text-gray-500 mt-2">
-                      Users will appear here when they interact with your stream
-                    </div>
+                    <div className="text-lg font-medium text-gray-400">No users found</div>
+                    <p className="text-gray-500 mt-2">Users will appear here when they interact with the bot</p>
                   </div>
                 ) : (
-                  <div className="grid gap-4">
-                    {users.map((user) => (
-                      <div key={user.id} className="flex items-center justify-between p-4 border-2 border-gray-700 rounded-xl hover:border-green-500/50 transition-all duration-300 bg-black/20">
-                        <div className="flex items-center gap-4">
-                          <div className={`p-3 rounded-lg ${user.isActive ? 'bg-green-500/20' : 'bg-gray-800'}`}>
-                            <Users className={`h-5 w-5 ${user.isActive ? 'text-green-400' : 'text-gray-400'}`} />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-white">
-                                {user.username || user.firstName || `User ${user.id}`}
-                              </span>
-                              {user.isAdmin && (
-                                <div className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded-full text-xs font-medium">
-                                  Admin
-                                </div>
-                              )}
-                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${user.isActive ? 'bg-green-500/20 text-green-300' : 'bg-gray-800 text-gray-400'}`}>
-                                {user.isActive ? "Active" : "Inactive"}
-                              </div>
-                            </div>
-                            <div className="text-sm text-gray-400">
-                              ID: {user.id} • Joined: {new Date(user.createdAt).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              checked={user.isAdmin}
-                              onCheckedChange={(checked) => handleToggleUserAdmin(user.id, checked)}
-                              disabled={loading}
-                              className="data-[state=checked]:bg-green-500"
-                            />
-                            <span className="text-sm font-medium text-white">Admin</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="text-center py-12">
+                    <div className="text-lg font-medium text-gray-400">Users management coming soon</div>
+                    <p className="text-gray-500 mt-2">User list will be displayed here</p>
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="logs" className="space-y-6">
+          <div className="text-center py-12">
+            <div className="p-4 bg-gray-800 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <FileText className="h-8 w-8 text-gray-400" />
+            </div>
+            <div className="text-lg font-medium text-gray-400">Logs Tab Coming Soon</div>
+            <p className="text-gray-500 mt-2">Comprehensive logging system is being implemented</p>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -1618,12 +1781,9 @@ useEffect(() => {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="sm:max-w-[425px] bg-black/90 backdrop-blur-md border border-red-500/20 text-white">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-white">
-              <Edit className="h-5 w-5 text-blue-400" />
-              Edit OBS Connection
-            </DialogTitle>
+            <DialogTitle className="text-white">Edit OBS Connection</DialogTitle>
             <DialogDescription className="text-gray-300">
-              Update your OBS Studio connection settings
+              Update the connection details for your OBS instance.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -1641,13 +1801,13 @@ useEffect(() => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="editHost" className="text-sm font-medium text-white">
-                Host Address
+                Host
               </Label>
               <Input
                 id="editHost"
                 value={editForm.host}
                 onChange={(e) => setEditForm({ ...editForm, host: e.target.value })}
-                placeholder="localhost or IP address"
+                placeholder="localhost"
                 className="h-12 border-2 border-blue-500/30 focus:border-blue-500 bg-black/20 text-white placeholder:text-gray-400 transition-colors"
               />
             </div>
@@ -1659,7 +1819,7 @@ useEffect(() => {
                 id="editPort"
                 type="number"
                 value={editForm.port}
-                onChange={(e) => setEditForm({ ...editForm, port: parseInt(e.target.value) || 4455 })}
+                onChange={(e) => setEditForm({ ...editForm, port: parseInt(e.target.value) })}
                 placeholder="4455"
                 className="h-12 border-2 border-blue-500/30 focus:border-blue-500 bg-black/20 text-white placeholder:text-gray-400 transition-colors"
               />
