@@ -29,6 +29,7 @@ export async function GET() {
         nodeVersion: process.version,
         platform: process.platform,
         vercel: process.env.VERCEL ? 'Yes' : 'No',
+        postgresUrl: process.env.POSTGRES_URL ? 'Configured' : 'Missing',
         databaseUrl: process.env.DATABASE_URL ? 'Configured' : 'Missing'
       }
     };
