@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OBSManager } from '@/lib/obs/obs.manager';
+import { OBSService } from '@/lib/obs/obs.service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     const obsManager = OBSManager.getInstance();
     
     // Create a temporary test service
-    const tempService = new (await import('@/lib/obs/obs.service')).OBSService(0);
+    const tempService = new OBSService(0);
     
     try {
       // Test connection
