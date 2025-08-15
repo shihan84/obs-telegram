@@ -88,15 +88,15 @@ export class Logger {
     if (component) where.component = component;
     if (userId) where.userId = userId;
     if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = startDate;
-      if (endDate) where.createdAt.lte = endDate;
+      where.created_at = {};
+      if (startDate) where.created_at.gte = startDate;
+      if (endDate) where.created_at.lte = endDate;
     }
 
     try {
       const logs = await db.applicationLog.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
         take: limit,
         skip: offset
       });
@@ -130,7 +130,7 @@ export class Logger {
         }),
         db.applicationLog.findMany({
           where: { level: 'ERROR' },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { created_at: 'desc' },
           take: 10
         })
       ]);
@@ -168,7 +168,7 @@ export class Logger {
 
       const result = await db.applicationLog.deleteMany({
         where: {
-          createdAt: {
+          created_at: {
             lt: cutoffDate
           }
         }

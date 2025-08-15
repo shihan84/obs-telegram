@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 export async function GET() {
   try {
     const users = await db.telegramUser.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { created_at: 'desc' }
     });
 
     // Convert BigInt to string for JSON serialization

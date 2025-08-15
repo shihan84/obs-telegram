@@ -282,7 +282,7 @@ export class TelegramBotService {
 
     try {
       const users = await db.telegramUser.findMany({
-        orderBy: { createdAt: 'desc' }
+        orderBy: { created_at: 'desc' }
       });
 
       let usersMessage = '👥 *Registered Users:*\n\n';

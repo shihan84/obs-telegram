@@ -114,7 +114,7 @@ export async function GET() {
 
       // Get connections from database
       const connections = await db.oBSConnection.findMany({
-        orderBy: { createdAt: 'desc' }
+        orderBy: { created_at: 'desc' }
       });
 
       diagnostics.obs.connections = connections.map(conn => ({
