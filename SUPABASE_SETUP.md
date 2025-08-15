@@ -210,7 +210,7 @@ After running the SQL script, you should see a success message. To verify the ta
 ### 5. Update Environment File
 Your `.env` file should already be configured with:
 ```
-DATABASE_URL=postgresql://postgres:wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require
 ```
 
 ### 6. Test the Connection

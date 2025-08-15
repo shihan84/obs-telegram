@@ -10,13 +10,13 @@ const { PrismaClient } = require('@prisma/client');
 // Test connection strings - replace with your actual credentials
 const connectionStrings = [
   // Option A: Recommended format
-  'postgresql://postgres.wJxY2fQO2foE96MQ@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true',
+  'postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true',
   
   // Option B: Alternative format
-  'postgresql://postgres.wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true',
+  'postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true',
   
   // Option C: postgres:// protocol
-  'postgres://postgres.wJxY2fQO2foE96MQ@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true',
+  'postgres://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true',
 ];
 
 async function testConnection(connectionString, index) {

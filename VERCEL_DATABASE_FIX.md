@@ -5,7 +5,7 @@
 The diagnostics show that your OBS Telegram Bot application cannot connect to the PostgreSQL database. The error indicates:
 
 ```
-Can't reach database server at `omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543`
+Can't reach database server at `aws-0-ap-south-1.pooler.supabase.com:6543`
 ```
 
 This means the DATABASE_URL environment variable in Vercel needs to be corrected.
@@ -23,7 +23,7 @@ postgresql://postgres.wJxY2fQO2foE96MQ@aws-0-us-east-1.pooler.supabase.com:6543/
 
 #### **Option B: Alternative Direct Connection**
 ```
-postgresql://postgres.wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true
+postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true
 ```
 
 ### Step 2: Update Vercel Environment Variables

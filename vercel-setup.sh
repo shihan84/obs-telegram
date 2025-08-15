@@ -27,10 +27,12 @@ echo "⚙️ Setting up environment variables..."
 # Database URL
 echo "Setting DATABASE_URL..."
 vercel env add DATABASE_URL production
+# Paste: postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require
 
 # Alternative database URL for fallback
 echo "Setting POSTGRES_URL..."
 vercel env add POSTGRES_URL production
+# Paste: postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require
 
 # Optional: NextAuth variables (if needed)
 echo "Setting NEXTAUTH_URL..."

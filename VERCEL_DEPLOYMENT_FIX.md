@@ -14,8 +14,8 @@ You need to set these environment variables in your Vercel project:
 
 #### Required Variables:
 ```
-DATABASE_URL=postgresql://postgres:wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
-POSTGRES_URL=postgresql://postgres:wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require
+POSTGRES_URL=postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require
 ```
 
 #### Optional Variables:
@@ -33,8 +33,8 @@ NEXTAUTH_SECRET=your-secret-key-here
 
 | Name | Value | Environment |
 |------|-------|-------------|
-| DATABASE_URL | `postgresql://postgres:wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require` | Production |
-| POSTGRES_URL | `postgresql://postgres:wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require` | Production |
+| DATABASE_URL | `postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require` | Production |
+| POSTGRES_URL | `postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require` | Production |
 | NEXTAUTH_URL | `https://obs-telegram.vercel.app` | Production |
 | NEXTAUTH_SECRET | `generate-a-random-secret-key` | Production |
 
@@ -51,10 +51,10 @@ vercel login
 
 # Add environment variables
 vercel env add DATABASE_URL production
-# Paste: postgresql://postgres:wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
+# Paste: postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require
 
 vercel env add POSTGRES_URL production
-# Paste: postgresql://postgres:wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
+# Paste: postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require
 
 vercel env add NEXTAUTH_URL production
 # Paste: https://obs-telegram.vercel.app
@@ -129,10 +129,10 @@ If the current database URL doesn't work, try these alternatives:
 
 ```
 # Direct connection
-DATABASE_URL=postgresql://postgres:wJxY2fQO2foE96MQ@db.omxmgdmzdukhlnceqock.supabase.co:5432/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@db.omxmgdmzdukhlnceqock.supabase.co:5432/postgres?sslmode=require
 
 # Connection pooler with different SSL
-DATABASE_URL=postgresql://postgres:wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=no-verify
+DATABASE_URL=postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=no-verify
 ```
 
 ### 9. Verification

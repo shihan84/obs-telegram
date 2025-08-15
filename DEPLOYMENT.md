@@ -43,7 +43,7 @@ In the Vercel project settings, add the following environment variables:
 
 1. **DATABASE_URL**
    - Your Supabase connection string
-   - Example: `postgresql://postgres:wJxY2fQO2foE96MQ@omxmgdmzdukhlnceqock.aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require`
+   - Example: `postgresql://postgres.omxmgdmzdukhlnceqock:wJxY2fQO2foE96MQ@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require`
 
 2. **NEXT_TELEMETRY_DISABLED**
    - Value: `1`
