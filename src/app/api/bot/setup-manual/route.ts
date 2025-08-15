@@ -10,14 +10,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Bot token is required' }, { status: 400 })
     }
     
-    // Configure bot using raw SQL
-    await db.$executeRaw`
-      INSERT INTO bot_configurations (bot_token, bot_username, welcome_message)
-      VALUES (${bot_token}, ${bot_username || 'OBSControlBot'}, 'Welcome to OBS Control Bot! 🎥')
-      ON CONFLICT (bot_token) DO UPDATE 
-      SET bot_username = ${bot_username || 'OBSControlBot'},
-          updated_at = NOW()
-    `
+    // Configure bot using direct database operations
+    const config = await db.botConfiguration.upsert({
+      where: { id: 1 },
+      update: {
+        bot_token,
+        bot_username: bot_username || 'OBSControlBot',
+        welcome_message: 'Welcome to OBS Control Bot! 🎥'
+      },
+      create: {
+        bot_token,
+        bot_username: bot_username || 'OBSControlBot',
+        welcome_message: 'Welcome to OBS Control Bot! 🎥'
+      }
+    })
     
     // Start the bot
     const botManager = BotManager.getInstance()
