@@ -40,7 +40,7 @@ interface OBSConnection {
   host: string;
   port: number;
   password?: string;
-  isConnected: boolean;
+  is_connected: boolean;
 }
 
 interface TelegramUser {
@@ -181,7 +181,7 @@ export default function Home() {
   useEffect(() => {
     // Fetch stream status for all connected OBS connections
     obsConnections.forEach(connection => {
-      if (connection.isConnected) {
+      if (connection.is_connected) {
         fetchStreamStatus(connection.id);
       }
     });
@@ -1347,15 +1347,15 @@ export default function Home() {
                     {obsConnections.map((connection) => (
                       <div key={connection.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-2 border-gray-700 rounded-xl hover:border-purple-500/50 transition-all duration-300 bg-black/20 gap-4">
                         <div className="flex items-center gap-4 w-full sm:w-auto">
-                          <div className={`p-3 rounded-lg ${connection.isConnected ? 'bg-green-500/20' : 'bg-gray-800'}`}>
-                            <Server className={`h-5 w-5 ${connection.isConnected ? 'text-green-400' : 'text-gray-400'}`} />
+                          <div className={`p-3 rounded-lg ${connection.is_connected ? 'bg-green-500/20' : 'bg-gray-800'}`}>
+                            <Server className={`h-5 w-5 ${connection.is_connected ? 'text-green-400' : 'text-gray-400'}`} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-white">{connection.name}</div>
                             <div className="text-sm text-gray-400">
                               {connection.host}:{connection.port}
                             </div>
-                            {connection.isConnected && streamStatus[connection.id] && (
+                            {connection.is_connected && streamStatus[connection.id] && (
                               <div className="flex items-center gap-4 mt-2 text-xs">
                                 <div className="flex items-center gap-1">
                                   <div className={`w-2 h-2 rounded-full ${streamStatus[connection.id].isStreaming ? 'bg-red-400 animate-pulse' : 'bg-gray-500'}`} />
@@ -1374,11 +1374,11 @@ export default function Home() {
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                          <div className={`px-3 py-1 rounded-full text-sm font-medium ${connection.isConnected ? 'bg-green-500/20 text-green-300' : 'bg-gray-800 text-gray-400'}`}>
-                            {connection.isConnected ? 'Connected' : 'Disconnected'}
+                          <div className={`px-3 py-1 rounded-full text-sm font-medium ${connection.is_connected ? 'bg-green-500/20 text-green-300' : 'bg-gray-800 text-gray-400'}`}>
+                            {connection.is_connected ? 'Connected' : 'Disconnected'}
                           </div>
                           
-                          {connection.isConnected && (
+                          {connection.is_connected && (
                             <>
                               {/* Stream Controls */}
                               <div className="flex items-center gap-1 border border-red-500/30 rounded-lg p-1 bg-red-500/10">
@@ -1411,12 +1411,12 @@ export default function Home() {
                           )}
                           
                           <Button
-                            onClick={() => handleToggleObsConnection(connection.id, !connection.isConnected)}
+                            onClick={() => handleToggleObsConnection(connection.id, !connection.is_connected)}
                             disabled={loading}
                             size="sm"
-                            className={`h-9 ${connection.isConnected ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white`}
+                            className={`h-9 ${connection.is_connected ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white`}
                           >
-                            {connection.isConnected ? 'Disconnect' : 'Connect'}
+                            {connection.is_connected ? 'Disconnect' : 'Connect'}
                           </Button>
                           <Button
                             variant="outline"
