@@ -100,27 +100,17 @@ export async function POST() {
 
 export async function GET() {
   try {
-    // Check the current database schema status (SQLite compatible)
-    const tables = await db.$queryRaw`
-      SELECT name FROM sqlite_master WHERE type='table' AND name IN ('bot_configurations', 'obs_connections', 'application_logs')
+    // Check the current database schema status (PostgreSQL compatible)
+    const schemaCheck = await db.$queryRaw`
+      SELECT table_name, column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns 
+      WHERE table_name IN ('bot_configurations', 'obs_connections', 'application_logs')
+      ORDER BY table_name, ordinal_position
     `;
-
-    // Check columns for each table
-    const schemaInfo = [];
-    
-    for (const table of tables as any[]) {
-      const columns = await db.$queryRawUnsafe(`PRAGMA table_info(${table.name})`);
-      schemaInfo.push({
-        table: table.name,
-        columns: JSON.parse(JSON.stringify(columns, (key, value) => 
-          typeof value === 'bigint' ? value.toString() : value
-        ))
-      });
-    }
 
     return NextResponse.json({ 
       message: 'Database schema status',
-      schema: schemaInfo
+      schema: schemaCheck
     });
   } catch (error) {
     console.error('Error checking database schema:', error);

@@ -12,12 +12,7 @@ const hostname = '0.0.0.0';
 // Custom server with Socket.IO integration
 async function createCustomServer() {
   try {
-    // Initialize OBS Manager
-    const obsManager = OBSManager.getInstance();
-    await obsManager.initializeConnections();
-    console.log('OBS Manager initialized');
-
-    // Create Next.js app
+    // Create Next.js app first (this doesn't depend on database)
     const nextApp = next({ 
       dev,
       dir: process.cwd(),
@@ -47,6 +42,16 @@ async function createCustomServer() {
     });
 
     setupSocket(io);
+
+    // Initialize OBS Manager (with error handling)
+    try {
+      const obsManager = OBSManager.getInstance();
+      await obsManager.initializeConnections();
+      console.log('OBS Manager initialized');
+    } catch (obsError) {
+      console.warn('OBS Manager initialization failed (database may not be ready):', obsError);
+      console.log('Continuing without OBS Manager - you can configure OBS connections via web interface');
+    }
 
     // Start the server
     server.listen(currentPort, hostname, () => {
