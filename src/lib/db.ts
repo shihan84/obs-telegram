@@ -11,7 +11,7 @@ export const db =
     // Configure for Vercel serverless environment
     datasources: {
       db: {
-        url: process.env.POSTGRES_URL!
+        url: process.env.DATABASE_URL || process.env.POSTGRES_URL!
       }
     }
   })

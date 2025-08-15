@@ -5,7 +5,7 @@ import { OBSManager } from '@/lib/obs/obs.manager';
 export async function GET() {
   try {
     const connections = await db.oBSConnection.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { created_at: 'desc' }
     });
 
     return NextResponse.json(connections);
