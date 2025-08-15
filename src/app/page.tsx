@@ -215,7 +215,11 @@ export default function Home() {
       const response = await fetch('/api/obs/connections');
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched OBS connections:', data);
         setObsConnections(data);
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to fetch OBS connections:', response.status, errorText);
       }
     } catch (error) {
       console.error('Failed to fetch OBS connections:', error);
@@ -403,13 +407,17 @@ export default function Home() {
 
     setLoading(true);
     try {
+      console.log('Adding OBS connection:', newObsConnection);
       const response = await fetch('/api/obs/connections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newObsConnection)
       });
 
+      console.log('OBS connection response status:', response.status);
       if (response.ok) {
+        const result = await response.json();
+        console.log('OBS connection added successfully:', result);
         setMessage({ type: 'success', text: 'OBS connection added successfully' });
         // Log the successful OBS connection addition
         await fetch('/api/logs', {
@@ -430,6 +438,8 @@ export default function Home() {
         fetchObsConnections();
         fetchBotStatus();
       } else {
+        const errorText = await response.text();
+        console.error('Failed to add OBS connection:', response.status, errorText);
         setMessage({ type: 'error', text: 'Failed to add OBS connection' });
         // Log the failure
         await fetch('/api/logs', {
@@ -443,12 +453,14 @@ export default function Home() {
               name: newObsConnection.name,
               host: newObsConnection.host,
               port: newObsConnection.port,
-              responseStatus: response.status
+              responseStatus: response.status,
+              responseText: errorText
             }
           })
         });
       }
     } catch (error) {
+      console.error('Failed to add OBS connection:', error);
       setMessage({ type: 'error', text: 'Failed to add OBS connection' });
       // Log the error
       await fetch('/api/logs', {
